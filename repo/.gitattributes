@@ -1,0 +1,28 @@
+# ============================================================
+# .gitattributes
+# TBA-DamirOS/cicd-workflows
+#
+# Forces LF line endings across Mac, WSL, and Windows.
+# Prevents CRLF from silently breaking shell scripts in CI.
+# ============================================================
+
+# Default: auto-detect text files and normalise to LF
+* text=auto eol=lf
+
+# Explicitly enforce LF on all script and config types
+*.sh    text eol=lf
+*.mjs   text eol=lf
+*.js    text eol=lf
+*.ts    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.env*  text eol=lf
+
+# Binary files — never touch line endings
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary

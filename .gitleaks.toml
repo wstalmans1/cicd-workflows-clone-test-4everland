@@ -1,0 +1,27 @@
+# ============================================================
+# .gitleaks.toml
+# tba-damiros/cicd-workflows
+#
+# Gitleaks configuration — extends the default ruleset.
+# Add allowlists here for known false positives (e.g. test
+# fixture values that look like keys but are not real).
+# ============================================================
+
+title = "tba-damiros Gitleaks Config"
+
+[extend]
+# Extend the official default ruleset
+useDefault = true
+
+# ── Allowlist ─────────────────────────────────────────────
+# Add false-positive patterns here as you encounter them.
+# Each entry must be documented with a reason.
+
+[[allowlists]]
+description = "Placeholder values in .env.example files are not real secrets"
+paths = [".env.example"]
+
+# Example of allowing a specific known test value:
+# [[allowlists]]
+# description = "Hardhat default test private key — no real value"
+# regexes = ["0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"]

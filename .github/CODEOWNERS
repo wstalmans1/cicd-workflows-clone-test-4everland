@@ -1,0 +1,15 @@
+# ============================================================
+# CODEOWNERS
+# tba-damiros/cicd-workflows
+#
+# Changes to any workflow or script require review from the
+# pipeline repo owner. This prevents a dApp developer from
+# silently weakening a security check by editing this repo.
+# ============================================================
+
+# All files — pipeline maintainer must review every change
+* @tba-damiros
+
+# Workflow definitions — extra protection on the core files
+.github/workflows/  @tba-damiros
+scripts/            @tba-damiros

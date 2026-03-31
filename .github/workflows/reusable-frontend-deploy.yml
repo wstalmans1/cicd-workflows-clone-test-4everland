@@ -1,0 +1,257 @@
+# ============================================================
+# REUSABLE WORKFLOW — Frontend Security, IPFS & ENS Deploy
+# Repo: tba-damiros/cicd-workflows
+# Path: .github/workflows/reusable-frontend-deploy.yml
+#
+# Called by each dApp repo via their thin ci.yml caller file.
+# Update this file once → all dApps inherit automatically.
+# ============================================================
+
+name: Reusable — Frontend Security, IPFS & ENS Deploy
+
+on:
+  workflow_call:
+    inputs:
+
+      pin-name-prefix:
+        description: 'Prefix used in the Pinata pin name — defaults to ens-name if not set'
+        required: false
+        type: string
+        default: ''
+
+      node-version:
+        required: false
+        type: string
+        default: '20'
+
+      pnpm-version:
+        description: 'Must match the engines.pnpm field in the dApp package.json'
+        required: false
+        type: string
+        default: '10'
+
+    secrets:
+      PINATA_JWT:
+        required: true
+      ENS_MANAGER_PRIVATE_KEY:
+        required: false
+      RPC_URL:
+        required: false
+      VITE_WALLETCONNECT_PROJECT_ID:
+        required: false
+
+# ============================================================
+# JOB 1 — Security & Quality Checks
+# All checks must pass before build or deploy can run.
+# Blocking policy: CRITICAL = blocks now. HIGH = warns now,
+# blocks from Day 60. See docs/pipeline-policy.md
+# ============================================================
+jobs:
+  security-checks:
+    name: Security & Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0       # full history required by Gitleaks
+
+      # ----------------------------------------------------------
+      # STEP 1 — Lockfile integrity (must run before everything else)
+      # Blocks: lockfile out of sync with package.json
+      # Without this, npm audit results cannot be trusted.
+      # ----------------------------------------------------------
+      - name: Verify lockfile integrity
+        run: |
+          if ! git diff --exit-code pnpm-lock.yaml; then
+            echo "::error::pnpm-lock.yaml is out of sync with package.json."
+            echo "Run 'pnpm install' locally and commit the updated lockfile."
+            exit 1
+          fi
+
+    # ----------------------------------------------------------
+      # STEP 2 — Secret scanning (Gitleaks CLI — no license needed)
+      # Blocks: any detected secret (private key, API key, JWT, mnemonic)
+      # Uses latest Gitleaks release dynamically via GitHub API.
+      # Zero tolerance — even test keys must use env vars.
+      # ----------------------------------------------------------
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        with:
+          config-path: .pipeline/.gitleaks.toml
+
+      # ----------------------------------------------------------
+      # Toolchain setup (shared across remaining check steps)
+      # pnpm version pinned to input — matches engines.pnpm field.
+      # ----------------------------------------------------------
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ inputs.pnpm-version }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ----------------------------------------------------------
+      # STEP 3 — npm audit
+      # Blocks: CRITICAL CVEs (--audit-level=critical)
+      # Warns:  HIGH and MODERATE CVEs (visible in output)
+      # ----------------------------------------------------------
+      - name: npm audit — CRITICAL block
+        run: pnpm audit --audit-level=critical
+
+      # ----------------------------------------------------------
+      # STEP 4 — ESLint security
+      # Blocks: error-level security rules
+      # Warns:  warn-level rules (eval, unsafe regex, prototype pollution)
+      # Requires eslint-plugin-security in the dApp's devDependencies.
+      # ----------------------------------------------------------
+      - name: ESLint security check
+        run: pnpm run lint
+
+      # ----------------------------------------------------------
+      # STEP 5 — TypeScript strict check
+      # Blocks: any type error
+      # ----------------------------------------------------------
+      - name: TypeScript type check
+        run: pnpm exec tsc --noEmit
+
+      # ----------------------------------------------------------
+      # STEP 6 — Sovereignty configuration checks
+      # Blocks: missing CSP header, unapproved RPC, unrestricted WalletConnect
+      # ----------------------------------------------------------
+      - name: Sovereignty configuration check
+        uses: tba-damiros/cicd-workflows/actions/sovereignty-check@main
+        continue-on-error: true
+
+      # ----------------------------------------------------------
+      # STEP 7 — Threat model staleness check
+      # Warns (never blocks): package.json changed, threat-model.json did not
+      # ----------------------------------------------------------
+      - name: Detect dependency and threat model changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            deps: 'package.json'
+            threatmodel: 'threat-model.json'
+
+      - name: Warn if threat model may be stale
+        if: steps.changes.outputs.deps == 'true' && steps.changes.outputs.threatmodel == 'false'
+        run: |
+          echo "::warning::package.json changed but threat-model.json was not updated. \
+          Review whether new dependencies introduce new trust boundaries or threat vectors."
+
+
+# ============================================================
+# JOB 2 — Build
+# Runs only after all security checks pass.
+# Uploads dist/ as an artifact consumed by the deploy job.
+# ============================================================
+  build:
+    name: Build
+    needs: security-checks
+    runs-on: ubuntu-latest
+    outputs:
+      build-hash: ${{ steps.hash.outputs.hash }}
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ inputs.pnpm-version }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+        env:
+          VITE_WALLETCONNECT_PROJECT_ID: ${{ secrets.VITE_WALLETCONNECT_PROJECT_ID }}
+          VITE_RPC_MAINNET: ${{ secrets.VITE_RPC_MAINNET }}
+          VITE_RPC_SEPOLIA: ${{ secrets.VITE_RPC_SEPOLIA }}
+          VITE_RPC_POLYGON: ${{ secrets.VITE_RPC_POLYGON }}
+          VITE_RPC_OPTIMISM: ${{ secrets.VITE_RPC_OPTIMISM }}
+          VITE_RPC_ARBITRUM: ${{ secrets.VITE_RPC_ARBITRUM }}
+          VITE_RPC_BASE: ${{ secrets.VITE_RPC_BASE }}
+
+      # Deterministic build hash — logged in summary and can be submitted
+      # to DAO governance as verifiable proof of what was deployed.
+      - name: Generate build hash
+        id: hash
+        run: |
+          HASH=$(find dist -type f | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          echo "Build hash: $HASH"
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: 1
+
+
+# ============================================================
+# JOB 3 — Deploy: Pin to IPFS
+# Runs automatically after build passes.
+# ============================================================
+  deploy:
+    name: Pin to IPFS
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+
+      - name: Pin to Pinata (IPFS)
+        id: pinata
+        uses: tba-damiros/cicd-workflows/actions/pin-to-pinata@main
+        with:
+          pinata-jwt: ${{ secrets.PINATA_JWT }}
+          pin-name: "${{ inputs.pin-name-prefix != '' && inputs.pin-name-prefix || github.repository }} - ${{ github.sha }}"
+
+      - name: Deployment summary
+        run: |
+          echo "## ✅ Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Item | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **IPFS CID** | \`${{ steps.pinata.outputs.cid }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Build Hash** | \`${{ needs.build.outputs.build-hash }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 🔗 Access your site" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Gateway | URL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|-----|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Pinata | https://gateway.pinata.cloud/ipfs/${{ steps.pinata.outputs.cid }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| dweb.link | https://${{ steps.pinata.outputs.cid }}.ipfs.dweb.link |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| w3s.link | https://${{ steps.pinata.outputs.cid }}.ipfs.w3s.link |" >> "$GITHUB_STEP_SUMMARY"

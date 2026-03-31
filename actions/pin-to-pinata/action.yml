@@ -1,0 +1,26 @@
+name: Pin to Pinata (IPFS)
+description: Pins dist/ to IPFS via Pinata and outputs the CID
+
+inputs:
+  pinata-jwt:
+    description: Pinata JWT token
+    required: true
+  pin-name:
+    description: Human-readable name for the pin
+    required: true
+
+outputs:
+  cid:
+    description: IPFS CID of the pinned content
+    value: ${{ steps.pin.outputs.cid }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run pin to Pinata
+      id: pin
+      shell: bash
+      run: node ${{ github.action_path }}/pin-to-pinata.mjs
+      env:
+        PINATA_JWT: ${{ inputs.pinata-jwt }}
+        PIN_NAME:   ${{ inputs.pin-name }}

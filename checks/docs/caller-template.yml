@@ -1,0 +1,49 @@
+# ============================================================
+# CALLER WORKFLOW TEMPLATE
+# Copy this file into each dApp repo at:
+#   .github/workflows/ci.yml
+#
+# Change ONLY:
+#   - pin-name-prefix → your dApp's display name
+#   - pnpm-version   → must match engines.pnpm in package.json
+#
+# Everything else is inherited from tba-damiros/cicd-workflows.
+# Update the pipeline repo once → all dApps inherit it.
+# ============================================================
+
+name: Build & Pin to IPFS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pipeline:
+    uses: tba-damiros/cicd-workflows/.github/workflows/reusable-frontend-deploy.yml@main
+    with:
+      pin-name-prefix: your-dapp-name   # ← CHANGE THIS
+      node-version: '20'
+      pnpm-version: '10'                # ← must match engines.pnpm in package.json
+
+    # ── Secrets ─────────────────────────────────────────────────────────────
+    # secrets: inherit passes ALL caller repo secrets to the reusable workflow.
+    # VITE_RPC_MAINNET, VITE_RPC_SEPOLIA, VITE_RPC_POLYGON, VITE_RPC_OPTIMISM,
+    # VITE_RPC_ARBITRUM, and VITE_RPC_BASE are injected into the build step
+    # automatically. Store each URL as a GitHub Actions secret in your repo:
+    #   Settings → Secrets and variables → Actions → New repository secret
+    #
+    # Each developer must use their own Alchemy (or equivalent) keys —
+    # do not share or reuse another developer's keys.
+    #
+    # DOMAIN RESTRICTION: Once your production domain is known (e.g. after
+    # ENS deployment is live), lock each Alchemy key to that domain under
+    # App → Security → Allowed domains. Until then, keys are unrestricted —
+    # rotate them once the domain is confirmed.
+    #
+    # If a secret is missing at build time, viem silently falls back to
+    # public RPCs. Verify after deploy with:
+    #   grep -r "eth.merkle.io\|thirdweb.com" dist/   # should return nothing
+    # ────────────────────────────────────────────────────────────────────────
+    secrets: inherit

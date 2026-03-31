@@ -1,0 +1,9 @@
+name: Sovereignty Check
+description: CSP, RPC, and WalletConnect configuration checks
+
+runs:
+  using: composite
+  steps:
+    - name: Run sovereignty check
+      shell: bash
+      run: node ${{ github.action_path }}/sovereignty-check.mjs
