@@ -131,7 +131,7 @@ jobs:
       # Blocks: missing CSP header, unapproved RPC, unrestricted WalletConnect
       # ----------------------------------------------------------
       - name: Sovereignty configuration check
-        uses: tba-damiros/cicd-workflows/actions/sovereignty-check@main
+        uses: ./actions/sovereignty-check
         continue-on-error: true
 
       # ----------------------------------------------------------
@@ -234,7 +234,7 @@ jobs:
 
       - name: Pin to Pinata (IPFS)
         id: pinata
-        uses: tba-damiros/cicd-workflows/actions/pin-to-pinata@main
+        uses: ./actions/pin-to-pinata
         with:
           pinata-jwt: ${{ secrets.PINATA_JWT }}
           pin-name: "${{ inputs.pin-name-prefix != '' && inputs.pin-name-prefix || github.repository }} - ${{ github.sha }}"
