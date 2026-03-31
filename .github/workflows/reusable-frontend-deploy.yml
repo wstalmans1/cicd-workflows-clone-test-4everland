@@ -251,7 +251,7 @@ jobs:
         id: filebase
         uses: wstalmans1/cicd-workflows-clone-test-4everland/actions/pin-to-filebase@main
         with:
-          access-token: ${{ secrets.FILEBASE_ACCESS_KEY }}
+          access-token: ${{ secrets.FILEBASE_ACCESS_TOKEN }}
           pin-name: "${{ inputs.pin-name-prefix != '' && inputs.pin-name-prefix || github.repository }} - ${{ github.sha }}"
           cid: ${{ steps.pinata.outputs.cid }}
 
