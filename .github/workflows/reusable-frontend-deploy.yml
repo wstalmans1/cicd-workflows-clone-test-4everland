@@ -250,6 +250,7 @@ jobs:
       - name: Pin to Filebase (IPFS)
         id: filebase
         uses: wstalmans1/cicd-workflows-clone-test-4everland/actions/pin-to-filebase@main
+        continue-on-error: true
         with:
           access-key: ${{ secrets.FILEBASE_ACCESS_KEY }}
           secret-key: ${{ secrets.FILEBASE_SECRET_KEY }}
