@@ -1,0 +1,31 @@
+name: Pin to Filebase (IPFS)
+description: Pins an existing CID to IPFS via Filebase's Pinning Service API
+
+inputs:
+  access-token:
+    description: Filebase IPFS Pinning Service API access token
+    required: true
+  pin-name:
+    description: Human-readable name for the pin
+    required: true
+  cid:
+    description: IPFS CID to pin on Filebase
+    required: true
+
+outputs:
+  cid:
+    description: IPFS CID that was pinned
+    value: ${{ steps.pin.outputs.cid }}
+
+runs:
+  using: composite
+  steps:
+    - name: Pin CID to Filebase
+      id: pin
+      shell: bash
+      run: node ${{ github.action_path }}/pin-to-filebase.mjs
+      env:
+        FILEBASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+        PIN_NAME: ${{ inputs.pin-name }}
+        CID: ${{ inputs.cid }}
+

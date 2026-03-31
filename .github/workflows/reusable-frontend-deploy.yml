@@ -239,6 +239,22 @@ jobs:
           pinata-jwt: ${{ secrets.PINATA_JWT }}
           pin-name: "${{ inputs.pin-name-prefix != '' && inputs.pin-name-prefix || github.repository }} - ${{ github.sha }}"
 
+      - name: Pin to 4everland (IPFS)
+        id: four
+        uses: wstalmans1/cicd-workflows-clone-test-4everland/actions/pin-to-4everland@main
+        with:
+          access-token: ${{ secrets.FOUREVERLAND_ACCESS_TOKEN }}
+          pin-name: "${{ inputs.pin-name-prefix != '' && inputs.pin-name-prefix || github.repository }} - ${{ github.sha }}"
+          cid: ${{ steps.pinata.outputs.cid }}
+
+      - name: Pin to Filebase (IPFS)
+        id: filebase
+        uses: wstalmans1/cicd-workflows-clone-test-4everland/actions/pin-to-filebase@main
+        with:
+          access-token: ${{ secrets.FILEBASE_ACCESS_KEY }}
+          pin-name: "${{ inputs.pin-name-prefix != '' && inputs.pin-name-prefix || github.repository }} - ${{ github.sha }}"
+          cid: ${{ steps.pinata.outputs.cid }}
+
       - name: Deployment summary
         run: |
           echo "## ✅ Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
@@ -246,6 +262,8 @@ jobs:
           echo "| Item | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|------|-------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| **IPFS CID** | \`${{ steps.pinata.outputs.cid }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **4everland** | Pinned CID \`${{ steps.four.outputs.cid }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Filebase** | Pinned CID \`${{ steps.filebase.outputs.cid }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| **Build Hash** | \`${{ needs.build.outputs.build-hash }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| **Commit** | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

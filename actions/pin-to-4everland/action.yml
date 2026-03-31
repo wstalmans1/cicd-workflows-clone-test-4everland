@@ -1,0 +1,31 @@
+name: Pin to 4everland (IPFS)
+description: Pins an existing CID to IPFS via 4everland's Pinning Services API
+
+inputs:
+  access-token:
+    description: 4everland IPFS Pinning Services API access token
+    required: true
+  pin-name:
+    description: Human-readable name for the pin
+    required: true
+  cid:
+    description: IPFS CID to pin on 4everland
+    required: true
+
+outputs:
+  cid:
+    description: IPFS CID that was pinned
+    value: ${{ steps.pin.outputs.cid }}
+
+runs:
+  using: composite
+  steps:
+    - name: Pin CID to 4everland
+      id: pin
+      shell: bash
+      run: node ${{ github.action_path }}/pin-to-4everland.mjs
+      env:
+        FOUR_EVERLAND_ACCESS_TOKEN: ${{ inputs.access-token }}
+        PIN_NAME: ${{ inputs.pin-name }}
+        CID: ${{ inputs.cid }}
+
