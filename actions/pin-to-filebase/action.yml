@@ -1,31 +1,39 @@
-name: Pin to Filebase (IPFS)
-description: Pins an existing CID to IPFS via Filebase's Pinning Service API
+name: Pin to Filebase (IPFS via S3)
+description: Uploads dist/ to Filebase via S3-compatible API and outputs the resulting CID
 
 inputs:
-  access-token:
-    description: Filebase IPFS Pinning Service API access token
+  access-key:
+    description: Filebase S3 API access key
+    required: true
+  secret-key:
+    description: Filebase S3 API secret key
+    required: true
+  bucket:
+    description: Filebase bucket name
+    required: true
+  region:
+    description: Filebase S3 region (usually us-east-1)
     required: true
   pin-name:
-    description: Human-readable name for the pin
-    required: true
-  cid:
-    description: IPFS CID to pin on Filebase
+    description: Human-readable name for the pin (used as object prefix)
     required: true
 
 outputs:
   cid:
-    description: IPFS CID that was pinned
+    description: IPFS CID of the uploaded directory
     value: ${{ steps.pin.outputs.cid }}
 
 runs:
   using: composite
   steps:
-    - name: Pin CID to Filebase
+    - name: Pin dist/ to Filebase via S3
       id: pin
       shell: bash
       run: node ${{ github.action_path }}/pin-to-filebase.mjs
       env:
-        FILEBASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+        FILEBASE_ACCESS_KEY: ${{ inputs.access-key }}
+        FILEBASE_SECRET_KEY: ${{ inputs.secret-key }}
+        FILEBASE_BUCKET: ${{ inputs.bucket }}
+        FILEBASE_REGION: ${{ inputs.region }}
         PIN_NAME: ${{ inputs.pin-name }}
-        CID: ${{ inputs.cid }}
 
